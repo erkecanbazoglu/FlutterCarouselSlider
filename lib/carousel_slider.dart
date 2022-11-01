@@ -86,7 +86,7 @@ class CarouselSlider extends StatefulWidget {
   final Axis scrollDirection;
   final int initialPage;
   final ValueChanged<int>? onSlideChanged;
-  final VoidCallback? onSlideStart;
+  final ValueChanged<int>? onSlideStart;
   final ValueChanged<int>? onSlideEnd;
   final Clip clipBehavior;
   final CarouselSliderController? controller;
@@ -129,6 +129,8 @@ class _CarouselSliderState extends State<CarouselSlider> {
   int? _currentPage;
   double _pageDelta = 0;
   late bool _isPlaying;
+  bool isScrolling = false;
+  String pageChange = "none";
 
   @override
   Widget build(BuildContext context) {
@@ -140,9 +142,23 @@ class _CarouselSliderState extends State<CarouselSlider> {
           NotificationListener<ScrollNotification>(
             onNotification: (notification) {
               if (notification is ScrollStartNotification) {
-                widget.onSlideStart?.call();
+                isScrolling = true;
+                pageChange == "next"
+                    ? widget.onSlideStart?.call(_currentPage! + 1)
+                    : pageChange == "prev"
+                        ? widget.onSlideStart?.call(_currentPage! - 1)
+                        : null;
               } else if (notification is ScrollEndNotification) {
                 widget.onSlideEnd?.call(_currentPage!);
+              } else if (notification is UserScrollNotification) {
+                if (isScrolling) {
+                  if (notification.direction == ScrollDirection.reverse) {
+                    widget.onSlideStart?.call(_currentPage! + 1);
+                  } else {
+                    widget.onSlideStart?.call(_currentPage! - 1);
+                  }
+                  isScrolling = false;
+                }
               }
               return true;
             },
@@ -230,17 +246,21 @@ class _CarouselSliderState extends State<CarouselSlider> {
   }
 
   Future<void> _nextPage(Duration? transitionDuration) async {
+    pageChange = "next";
     await _pageController!.nextPage(
       duration: transitionDuration ?? widget.autoSliderTransitionTime,
       curve: widget.autoSliderTransitionCurve,
     );
+    pageChange = "none";
   }
 
   Future<void> _previousPage(Duration? transitionDuration) async {
+    pageChange = "prev";
     await _pageController?.previousPage(
       duration: transitionDuration ?? widget.autoSliderTransitionTime,
       curve: widget.autoSliderTransitionCurve,
     );
+    pageChange = "none";
   }
 
   void _setAutoSliderEnabled(bool isEnabled) {
